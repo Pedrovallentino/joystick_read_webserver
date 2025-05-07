@@ -2,16 +2,16 @@
 Este projeto implementa um servidor web em uma Raspberry Pi Pico W que lê as posições de um joystick analógico utilizando os canais ADC (Conversor Analógico-Digital) e exibe a direção correspondente em uma página HTML acessível via Wi-Fi.
 
 ## 🛠️ Requisitos de Hardware
--**Microcontrolador: Raspberry Pi Pico W**
+- **Microcontrolador: Raspberry Pi Pico W**
 
--**Joystick Analógico: Com saídas para os eixos X e Y**
+- **Joystick Analógico: Com saídas para os eixos X e Y**
 
 **Conexões:**
--**ADC0 (GPIO26): Eixo X do joystick**
+- **ADC0 (GPIO26): Eixo X do joystick**
 
--**ADC1 (GPIO27): Eixo Y do joystick**
+- **ADC1 (GPIO27): Eixo Y do joystick**
 
--**Alimentação: Via cabo micro-USB**
+- **Alimentação: Via cabo micro-USB**
 
 ## 🖥️ Interface no navegador
 <img src=https://github.com/user-attachments/assets/095b3ed6-7661-4c1f-8e16-41192fd53171>
@@ -19,13 +19,13 @@ Este projeto implementa um servidor web em uma Raspberry Pi Pico W que lê as po
 ## 📂 Estrutura das pastas
 <img src=https://github.com/user-attachments/assets/ea17f308-decd-461b-a38c-92aa219f74e7>
 
--**CmakeLists.txt:** Arquivo para a build do projeto.
+- **CmakeLists.txt:** Arquivo para a build do projeto.
 
--**joystick_read_wifi.c:** Arquivo com o código para leitura do joystick e página web.
+- **joystick_read_wifi.c:** Arquivo com o código para leitura do joystick e página web.
 
--**lwipopts.h:** Biblioteca necessária para a utilização do módulo wifi da placa.
+- **lwipopts.h:** Biblioteca necessária para a utilização do módulo wifi da placa.
 
--**pico_sdk_import.cmake:** Arquivo necessário para Importar corretamente o SDK da Pico (pico-sdk) para o CMake, permitindo que o projeto use as bibliotecas e drivers fornecidos pelo SDK.
+- **pico_sdk_import.cmake:** Arquivo necessário para Importar corretamente o SDK da Pico (pico-sdk) para o CMake, permitindo que o projeto use as bibliotecas e drivers fornecidos pelo SDK.
 
 ## 🧾Estrutura do Código
 
@@ -42,13 +42,13 @@ Este projeto implementa um servidor web em uma Raspberry Pi Pico W que lê as po
 #include "lwip/tcp.h"                  // Funções do protocolo TCP
 #include "lwip/netif.h"                // Interface de rede
 ```
--**pico/stdlib.h:** Funções padrão da Raspberry Pi Pico.
+- **pico/stdlib.h:** Funções padrão da Raspberry Pi Pico.
 
--**hardware/adc.h:** Controle do ADC para leitura analógica.
+- **hardware/adc.h:** Controle do ADC para leitura analógica.
 
--**pico/cyw43_arch.h:** Controle do módulo Wi-Fi integrado.
+- **pico/cyw43_arch.h:** Controle do módulo Wi-Fi integrado.
 
--**lwip:** Pilha TCP/IP leve para comunicação de rede.
+- **lwip:** Pilha TCP/IP leve para comunicação de rede.
 
 **2. Definições de Constantes**
 ```c
@@ -57,9 +57,9 @@ Este projeto implementa um servidor web em uma Raspberry Pi Pico W que lê as po
 #define ADC_JOYSTICK_X 0               // Canal ADC para o eixo X do joystick
 #define ADC_JOYSTICK_Y 1               // Canal ADC para o eixo Y do joystick
 ```
--**WIFI_SSID e WIFI_PASSWORD:** Credenciais da rede Wi-Fi.
+- **WIFI_SSID e WIFI_PASSWORD:** Credenciais da rede Wi-Fi.
 
--**ADC_JOYSTICK_X e ADC_JOYSTICK_Y:** Canais ADC conectados aos eixos X e Y do joystick.
+- **ADC_JOYSTICK_X e ADC_JOYSTICK_Y:** Canais ADC conectados aos eixos X e Y do joystick.
 
 **3. Funções Auxiliares:**
    
@@ -297,17 +297,172 @@ static err_t tcp_server_accept(void *arg, struct tcp_pcb *newpcb, err_t err) {
 
 ```
 tcp_server_accept é chamada automaticamente sempre que uma nova conexão TCP é aceita no servidor.
-Linha principal:
+
+**Linha principal:**
 tcp_recv(newpcb, tcp_server_recv);
 
 Função: Define que, para essa nova conexão (newpcb), a função tcp_server_recv será usada para tratar os dados recebidos.
 
 
-Resultado: Toda vez que o cliente enviar dados (ou fizer uma requisição HTTP, por exemplo), tcp_server_recv será chamada.
+**Resultado:** Toda vez que o cliente enviar dados (ou fizer uma requisição HTTP, por exemplo), tcp_server_recv será chamada.
 
 
-Impacto: Sem essa configuração, o servidor aceitaria conexões mas não saberia como responder, tornando a comunicação incompleta.
-Retorno:
+**Impacto:** Sem essa configuração, o servidor aceitaria conexões mas não saberia como responder, tornando a comunicação incompleta.
+
+**Retorno:**
 return ERR_OK;
 
 Indica que a aceitação da conexão foi bem-sucedida.
+
+
+**6. Função Principal**
+
+```c
+int main() {
+    stdio_init_all();  // Inicializa entrada/saída padrão
+
+
+    // Inicializa e conecta ao Wi-Fi
+    if (cyw43_arch_init()) {
+        printf("Falha ao inicializar Wi-Fi\n");
+        return -1;
+    }
+
+
+    cyw43_arch_enable_sta_mode();
+    printf("Conectando ao Wi-Fi...\n");
+    if (cyw43_arch_wifi_connect_timeout_ms(WIFI_SSID, WIFI_PASSWORD, CYW43_AUTH_WPA2_AES_PSK, 20000)) {
+        printf("Falha ao conectar ao Wi-Fi\n");
+        return -1;
+    }
+
+
+    printf("Conectado ao Wi-Fi\n");
+    if (netif_default) {
+        printf("IP: %s\n", ipaddr_ntoa(&netif_default->ip_addr));
+    }
+
+
+    // Cria e configura o servidor TCP
+    struct tcp_pcb *server = tcp_new();
+    if (!server) {
+        printf("Falha ao criar servidor TCP\n");
+        return -1;
+    }
+
+
+    if (tcp_bind(server, IP_ADDR_ANY, 80) != ERR_OK) {
+        printf("Falha ao associar servidor TCP à porta 80\n");
+        return -1;
+    }
+
+
+    server = tcp_listen(server);               // Escuta por conexões
+    tcp_accept(server, tcp_server_accept);     // Define função de aceitação
+    printf("Servidor ouvindo na porta 80\n");
+
+
+    adc_init();  // Inicializa o ADC para ler joystick
+
+
+    // Loop principal de verificação da pilha de rede
+    while (true) {
+        cyw43_arch_poll();
+    }
+
+
+    cyw43_arch_deinit(); // (Nunca alcançado, mas encerra Wi-Fi)
+    return 0;
+}
+```
+
+1. stdio_init_all();
+   - Função: Inicializa as interfaces padrão de entrada e saída (como printf).
+
+
+   - Resultado: Permite que mensagens de depuração apareçam no terminal.
+
+
+   - Impacto: Sem essa chamada, printf() não exibiria informações úteis, dificultando o acompanhamento do estado do programa.
+     
+2. cyw43_arch_init();
+
+   - Função: Inicializa a arquitetura de Wi-Fi da placa, usando o chip CYW43.
+
+
+   - Resultado: Se bem-sucedido, prepara o sistema para configurar e utilizar a conexão Wi-Fi.
+
+
+   - Impacto: Essa etapa é obrigatória. Caso falhe, a conexão sem fio não funcionará e o programa será encerrado com mensagem de erro.
+
+
+3. cyw43_arch_enable_sta_mode();
+
+   - Função: Define o modo da placa como "estação" (STA), ou seja, como cliente de um roteador Wi-Fi.
+
+
+   - Resultado: A placa se prepara para buscar e se conectar a uma rede existente.
+
+
+   - Impacto: Sem essa configuração, a placa não se conectaria como cliente à rede local e o acesso ao servidor web falharia.
+
+
+4. cyw43_arch_wifi_connect_timeout_ms(...)
+
+   - Função: Realiza a tentativa de conexão à rede Wi-Fi definida por WIFI_SSID e WIFI_PASSWORD, com tempo limite de 20.000 ms (20 segundos).
+
+
+   - Resultado: Se a conexão for bem-sucedida, o dispositivo se conecta à rede e recebe um IP.
+
+
+   - Impacto: Permite que o servidor TCP seja acessível via rede local. Se os dados da rede estiverem errados ou o sinal estiver fraco, a conexão falhará.
+
+
+5. netif_default e ipaddr_ntoa(...)
+   - Função: Mostra o IP atribuído ao dispositivo na rede Wi-Fi.
+
+
+   - Resultado: O IP exibido permite que um cliente (como navegador web) acesse o servidor TCP.
+
+
+   - Impacto: Informar o IP no terminal facilita testar o sistema diretamente via navegador.
+
+
+6. tcp_new(); e tcp_bind(...)
+   - Funções: Criam uma instância do servidor TCP e a associam à porta 80 (padrão HTTP).
+
+
+   - Resultado: A placa começa a escutar conexões de clientes na porta 80.
+
+
+   - Impacto: A não associação à porta correta impediria o acesso via navegador (que usa HTTP na porta 80 por padrão).
+
+
+7. tcp_listen(...) e tcp_accept(...)
+   - Funções: Colocam o servidor TCP em modo de escuta e definem a função de callback tcp_server_accept que lida com novas conexões.
+
+
+   - Resultado: Ao acessar o IP da placa pelo navegador, o callback é ativado e a resposta HTML é enviada.
+
+
+   - Impacto: Permite que o navegador receba uma página com os dados do joystick (posição e direção).
+
+
+8. adc_init();
+   - Função: Inicializa o conversor analógico-digital da placa.
+
+
+   - Resultado: Habilita a leitura dos canais analógicos conectados ao joystick.
+
+
+   - Impacto: Sem isso, a leitura dos eixos X e Y do joystick falharia e os dados exibidos na página web estariam incorretos ou zerados.
+
+
+9. while (true) { cyw43_arch_poll(); }
+   - Função: Loop infinito que processa a pilha de rede (necessário para manter conexões e responder clientes).
+
+
+   - Resultado: Mantém o sistema ativo, respondendo continuamente às requisições recebidas pela rede.
+
+
+   - Impacto: É essencial para que o servidor funcione de forma contínua. Sem esse loop, o servidor seria encerrado logo após iniciar.
