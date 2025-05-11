@@ -1,4 +1,4 @@
-## 📌 Visão Geral
+## 📌 Visão Geral - Servidor Web na Placa BitDogLab com Leitura do Joystick e indicação das direções
 Este projeto implementa um servidor web em uma Raspberry Pi Pico W que lê as posições de um joystick analógico utilizando os canais ADC (Conversor Analógico-Digital) e exibe a direção correspondente em uma página HTML acessível via Wi-Fi.
 
 ## 🛠️ Requisitos de Hardware
